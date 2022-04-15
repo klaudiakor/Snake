@@ -4,19 +4,31 @@ using UnityEngine;
 
 public class Snake : MonoBehaviour
 {
-
-    private Vector2 _direction = Vector2.up;
-    private List<Transform> _segments = new List<Transform>();
     public Transform segmentPrefab;
-    public int initialSize = 4;
-    private int currentScore = 0;
-    private int maxScore = 0;
 
+    public const int initialSize = 4;
+    private const int ScoreGrowth = 10;
+
+    private readonly List<Transform> _segments = new List<Transform>();
+    private Vector2 _direction = Vector2.up;
+
+    public int CurrentScore
+    {
+        get;
+        private set;
+    } = 0;
+
+    public int MaxScore
+    {
+        get;
+        private set;
+    } = 0;
 
     private void Start()
     {
         ResetState();
     }
+
     private enum Direction
     {
         Up,
@@ -24,57 +36,27 @@ public class Snake : MonoBehaviour
         Right,
         Left
     };
+
     private void RotateAndSetDirection(Direction directionToSet)
     {
-        switch (directionToSet)
+        void transformWith(Vector2 rotationVec, Vector2 diretionVec)
         {
-            case Direction.Up:
-                {
-                    int z = 90;
-
-                    if (_direction == Vector2.left) { z = -90; }
-                    transform.Rotate(0, 0, z);
-                    _direction = Vector2.up;
-                    break;
-                }
-
-            case Direction.Down:
-                {
-                    int z = 90;
-                    if (_direction == Vector2.right) { z = -90; }
-                    transform.Rotate(0, 0, z);
-                    _direction = Vector2.down;
-                    break;
-                }
-            case Direction.Right:
-                {
-
-                    int z = 90;
-                    if (_direction == Vector2.up) { z = -90; }
-                    transform.Rotate(0, 0, z);
-                    _direction = Vector2.right;
-                    break;
-                }
-            case Direction.Left:
-                {
-                    int z = 90;
-                    if (_direction == Vector2.down) { z = -90; }
-                    transform.Rotate(0, 0, z);
-                    _direction = Vector2.left;
-                    break;
-                }
-
-
-            default: break;
-
+            transform.Rotate(0, 0, _direction == rotationVec ? -90 : 90);
+            _direction = diretionVec;
         }
 
+        switch (directionToSet)
+        {
+            case Direction.Up: transformWith(Vector2.left, Vector2.up); break;
+            case Direction.Down: transformWith(Vector2.right, Vector2.down); break;
+            case Direction.Right: transformWith(Vector2.up, Vector2.right); break;
+            case Direction.Left: transformWith(Vector2.down, Vector2.left); break;
+        }
     }
 
 
     private void Update()
     {
-
         if (_direction.x != 0f)
         {
             if (Input.GetKeyDown(KeyCode.W) || Input.GetKeyDown(KeyCode.UpArrow))
@@ -85,11 +67,9 @@ public class Snake : MonoBehaviour
             {
                 RotateAndSetDirection(Direction.Down);
             }
-
         }
         else if (_direction.y != 0f)
         {
-
             if (Input.GetKeyDown(KeyCode.A) || Input.GetKeyDown(KeyCode.LeftArrow))
             {
                 RotateAndSetDirection(Direction.Left);
@@ -98,24 +78,30 @@ public class Snake : MonoBehaviour
             {
                 RotateAndSetDirection(Direction.Right);
             }
-
-
         }
     }
 
     private void FixedUpdate()
     {
-        for (int i = _segments.Count - 1; i > 0; i--)
-        {
-            _segments[i].position = _segments[i - 1].position;
-        }
+        MoveLastToFront();
+        MoveHead();
+    }
 
+    private void MoveLastToFront()
+    {
+        Transform last = _segments[_segments.Count - 1];
+        _segments.RemoveAt(_segments.Count - 1);
+        _segments.Insert(1, last);
+        _segments[1].position = _segments[0].position;
+    }
+
+    private void MoveHead()
+    {
         transform.position = new Vector3(
             Mathf.Round(transform.position.x) + _direction.x,
             Mathf.Round(transform.position.y) + _direction.y,
             0.0f
         );
-
     }
 
     private void Grow()
@@ -123,28 +109,40 @@ public class Snake : MonoBehaviour
         Transform segment = Instantiate(segmentPrefab);
         segment.position = _segments[_segments.Count - 1].position;
         _segments.Add(segment);
-        currentScore += 10;
+        CurrentScore += ScoreGrowth;
     }
 
     private void ResetState()
+    {
+        ClearSnake();
+        AddSegments();
+        ResetHeadPosition();
+
+        CheckMaxScore();
+        CurrentScore = 0;
+    }
+
+    private void ResetHeadPosition()
+    {
+        transform.position = Vector3.zero;
+    }
+
+    private void AddSegments()
+    {
+        _segments.Add(transform);
+        for (int i = 1; i < initialSize; i++)
+        {
+            _segments.Add(Instantiate(segmentPrefab));
+        }
+    }
+
+    private void ClearSnake()
     {
         for (int i = 1; i < _segments.Count; i++)
         {
             Destroy(_segments[i].gameObject);
         }
         _segments.Clear();
-        _segments.Add(this.transform);
-
-        for (int i = 1; i < this.initialSize; i++)
-        {
-            _segments.Add(Instantiate(this.segmentPrefab));
-        }
-
-        // reset position of a head of a snake
-        this.transform.position = Vector3.zero;
-
-        SetMaxScore();
-        currentScore = 0;
     }
 
     private void OnTriggerEnter2D(Collider2D other)
@@ -159,23 +157,12 @@ public class Snake : MonoBehaviour
         }
     }
 
-    public int GetCurrentScore()
+    private void CheckMaxScore()
     {
-        return currentScore;
-    }
-    public int GetMaxScore()
-    {
-        return maxScore;
-    }
-    private void SetMaxScore()
-    {
-        if (currentScore > maxScore)
+        if (CurrentScore > MaxScore)
         {
-            maxScore = currentScore;
+            MaxScore = CurrentScore;
         }
     }
-
-
-
 
 }
